@@ -3,65 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KGD Hardest Ranking</title>
+    <title>KGD Hardest TOP 50</title>
     <style>
-        :root { --p: #a855f7; --c: #2dd4bf; --bg: #0f0a1e; }
-        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; display: flex; justify-content: center; }
+        :root { --p: #a855f7; --c: #2dd4bf; }
+        body { margin: 0; background: #0f0a1e; color: white; font-family: sans-serif; display: flex; justify-content: center; }
         .bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
                background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('amethyst_bg.jpg') no-repeat center/cover; }
-        .box { width: 92%; max-width: 800px; margin: 40px 0; background: rgba(255,255,255,0.05); 
+        .box { width: 92%; max-width: 850px; margin: 40px 0; background: rgba(25, 15, 45, 0.7); 
                backdrop-filter: blur(20px); border-radius: 24px; padding: 25px; border: 1px solid rgba(168,85,247,0.3); }
-        h1 { text-align: center; color: var(--p); text-shadow: 0 0 15px var(--p); font-size: 1.8rem; }
-        table { width: 100%; border-collapse: separate; border-spacing: 0 10px; }
+        h1 { text-align: center; color: var(--p); text-shadow: 0 0 15px var(--p); }
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
         th { color: var(--c); font-size: 0.75rem; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        td { padding: 16px 8px; text-align: center; font-size: 0.85rem; background: rgba(255,255,255,0.02); }
+        td { padding: 15px 8px; text-align: center; font-size: 0.85rem; background: rgba(255, 255, 255, 0.02); }
         .m { color: #ff5555; font-weight: bold; }
-        .btn { border: 1px solid var(--p); color: white; padding: 6px 12px; border-radius: 15px; text-decoration: none; font-size: 0.7rem; }
+        .btn { border: 1px solid var(--p); color: white; padding: 5px 10px; border-radius: 12px; text-decoration: none; font-size: 0.7rem; }
     </style>
 </head>
 <body>
     <div class="bg"></div>
     <div class="box">
-        <h1>KOREA HARDEST TOP 50</h1>
+        <h1>KGD HARDEST TOP 50</h1>
         <table>
             <thead>
                 <tr><th width="15%">RANK</th><th width="30%">NAME</th><th width="40%">HARDEST</th><th width="15%">VIDEO</th></tr>
             </thead>
             <tbody id="list">
-                <tr><td colspan="4" style="padding:50px;">데이터를 불러오는 중...</td></tr>
+                <tr><td colspan="4" id="status" style="padding:50px;">데이터 분석 및 로딩 중 (최대 10초)...</td></tr>
             </tbody>
         </table>
     </div>
 
     <script>
-        async function load() {
+        const proxy = "https://api.allorigins.win/get?url=";
+        const apiBase = "https://gmdkoreaforum.com/api";
+
+        async function fetchJSON(url) {
+            const res = await fetch(proxy + encodeURIComponent(url));
+            const json = await res.json();
+            return JSON.parse(json.contents);
+        }
+
+        async function init() {
             const list = document.getElementById('list');
-            // 1. 정확한 API 엔드포인트 확인
-            const apiUrl = 'https://gmdkoreaforum.com/api/demonlist/leaderboard';
-            const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}&_=${new Date().getTime()}`;
-
             try {
-                const res = await fetch(proxy);
-                const json = await res.json();
-                const players = JSON.parse(json.contents); // API 응답이 배열 형태인 경우
-
-                if (!players || players.length === 0) {
-                    list.innerHTML = "<tr><td colspan='4'>표시할 데이터가 없습니다.</td></tr>";
-                    return;
+                // 1. 리더보드에서 상위 50명 가져오기
+                const leaderboard = await fetchJSON(`${apiBase}/demonlist/leaderboard`);
+                const top50 = leaderboard.slice(0, 50);
+                
+                let html = "";
+                
+                // 2. 각 유저별로 상세 하디스트 정보 가져오기
+                // (이 과정이 필요해서 이전 코드들이 실패했던 것입니다)
+                for (let i = 0; i < top50.length; i++) {
+                    const user = top50[i];
+                    try {
+                        // 유저 상세 정보 호출 (demonlist.records 포함)
+                        const detail = await fetchJSON(`${apiBase}/users/name/${user.nickname}?config=demonlist.records`);
+                        
+                        // 레코드 중 가장 순위가 높은(하디스트) 맵 찾기
+                        const record = detail.demonlist.records[0]; // 보통 첫 번째가 가장 어려운 맵
+                        
+                        html += `
+                            <tr>
+                                <td style="color:var(--c)">#${i+1}</td>
+                                <td style="font-weight:600;">${user.nickname}</td>
+                                <td class="m">${record ? record.level_name : 'No Record'}</td>
+                                <td><a href="${record ? record.video_url : '#'}" target="_blank" class="btn">Watch</a></td>
+                            </tr>
+                        `;
+                        // 로딩 상황 업데이트
+                        list.innerHTML = html + `<tr><td colspan="4" style="color:#888;">데이터 불러오는 중... (${i+1}/50)</td></tr>`;
+                    } catch(e) { continue; }
                 }
+                list.innerHTML = html;
 
-                list.innerHTML = players.slice(0, 50).map((p, i) => `
-                    <tr>
-                        <td style="color:var(--c)">#${i+1}</td>
-                        <td style="font-weight:600;">${p.nickname}</td> <td class="m">${p.hardest_level_name || p.best_level_name || 'N/A'}</td> <td><a href="${p.hardest_video || p.best_level_video || '#'}" target="_blank" class="btn">Watch</a></td>
-                    </tr>
-                `).join('');
             } catch (e) {
-                // 에러 발생 시 멘트 고정
-                list.innerHTML = "<tr><td colspan='4'>서버 응답 없음 (API 연결 실패)</td></tr>";
+                list.innerHTML = "<tr><td colspan="4">포럼 API 연결 실패. 서버가 점검 중일 수 있습니다.</td></tr>";
             }
         }
-        window.onload = load;
+        window.onload = init;
     </script>
 </body>
 </html>
