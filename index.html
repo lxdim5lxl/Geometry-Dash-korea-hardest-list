@@ -3,33 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KGD Hardest TOP 50</title>
+    <title>KGD Hardest Ranking</title>
     <style>
         :root { --p: #a855f7; --c: #2dd4bf; }
         body { margin: 0; background: #0f0a1e; color: white; font-family: sans-serif; display: flex; justify-content: center; }
         .bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
                background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('amethyst_bg.jpg') no-repeat center/cover; }
-        .box { width: 92%; max-width: 850px; margin: 40px 0; background: rgba(25, 15, 45, 0.7); 
+        .box { width: 92%; max-width: 850px; margin: 40px 0; background: rgba(25, 15, 45, 0.8); 
                backdrop-filter: blur(20px); border-radius: 24px; padding: 25px; border: 1px solid rgba(168,85,247,0.3); }
-        h1 { text-align: center; color: var(--p); text-shadow: 0 0 15px var(--p); }
+        h1 { text-align: center; color: var(--p); text-shadow: 0 0 15px var(--p); font-size: 1.8rem; }
         table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
         th { color: var(--c); font-size: 0.75rem; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        td { padding: 15px 8px; text-align: center; font-size: 0.85rem; background: rgba(255, 255, 255, 0.02); }
+        td { padding: 15px 8px; text-align: center; font-size: 0.85rem; background: rgba(255, 255, 255, 0.03); border: 0.5px solid rgba(168,85,247,0.1); }
         .m { color: #ff5555; font-weight: bold; }
         .btn { border: 1px solid var(--p); color: white; padding: 5px 10px; border-radius: 12px; text-decoration: none; font-size: 0.7rem; }
+        .loading-status { text-align: center; padding: 20px; color: var(--c); font-weight: bold; font-size: 1.2rem; }
     </style>
 </head>
 <body>
     <div class="bg"></div>
     <div class="box">
-        <h1>KGD HARDEST TOP 50</h1>
+        <h1>KOREA HARDEST TOP 50</h1>
+        <div id="loading-bar" class="loading-status">API 연결 대기 중...</div>
         <table>
             <thead>
                 <tr><th width="15%">RANK</th><th width="30%">NAME</th><th width="40%">HARDEST</th><th width="15%">VIDEO</th></tr>
             </thead>
-            <tbody id="list">
-                <tr><td colspan="4" id="status" style="padding:50px;">데이터 분석 및 로딩 중 (최대 10초)...</td></tr>
-            </tbody>
+            <tbody id="list"></tbody>
         </table>
     </div>
 
@@ -39,46 +39,58 @@
 
         async function fetchJSON(url) {
             const res = await fetch(proxy + encodeURIComponent(url));
+            if (!res.ok) throw new Error();
             const json = await res.json();
             return JSON.parse(json.contents);
         }
 
         async function init() {
             const list = document.getElementById('list');
+            const loadingBar = document.getElementById('loading-bar');
+            
             try {
-                // 1. 리더보드에서 상위 50명 가져오기
+                // 1. 리더보드 호출
+                loadingBar.innerText = "리더보드 불러오는 중...";
                 const leaderboard = await fetchJSON(`${apiBase}/demonlist/leaderboard`);
                 const top50 = leaderboard.slice(0, 50);
                 
-                let html = "";
+                let accumulatedHtml = "";
                 
-                // 2. 각 유저별로 상세 하디스트 정보 가져오기
-                // (이 과정이 필요해서 이전 코드들이 실패했던 것입니다)
+                // 2. 순차적으로 유저 정보 호출 (1/50 카운트 로직)
                 for (let i = 0; i < top50.length; i++) {
                     const user = top50[i];
+                    loadingBar.innerText = `데이터 수집 중: ${i + 1} / 50`;
+                    
                     try {
-                        // 유저 상세 정보 호출 (demonlist.records 포함)
+                        // 유저 상세 정보에서 하디스트 추출
                         const detail = await fetchJSON(`${apiBase}/users/name/${user.nickname}?config=demonlist.records`);
+                        const record = (detail.demonlist && detail.demonlist.records) ? detail.demonlist.records[0] : null;
                         
-                        // 레코드 중 가장 순위가 높은(하디스트) 맵 찾기
-                        const record = detail.demonlist.records[0]; // 보통 첫 번째가 가장 어려운 맵
-                        
-                        html += `
+                        accumulatedHtml += `
                             <tr>
                                 <td style="color:var(--c)">#${i+1}</td>
                                 <td style="font-weight:600;">${user.nickname}</td>
-                                <td class="m">${record ? record.level_name : 'No Record'}</td>
+                                <td class="m">${record ? record.level_name : '기록 없음'}</td>
                                 <td><a href="${record ? record.video_url : '#'}" target="_blank" class="btn">Watch</a></td>
                             </tr>
                         `;
-                        // 로딩 상황 업데이트
-                        list.innerHTML = html + `<tr><td colspan="4" style="color:#888;">데이터 불러오는 중... (${i+1}/50)</td></tr>`;
-                    } catch(e) { continue; }
+                        // 매 유저마다 화면 갱신
+                        list.innerHTML = accumulatedHtml;
+                    } catch(e) {
+                        console.error(`${user.nickname} 데이터 로드 실패`);
+                        continue;
+                    }
+                    
+                    // 서버 차단을 피하기 위한 아주 짧은 휴식 (0.1초)
+                    await new Promise(r => setTimeout(r, 100));
                 }
-                list.innerHTML = html;
+                
+                loadingBar.innerText = "불러오기 완료!";
+                setTimeout(() => loadingBar.style.display = 'none', 2000);
 
             } catch (e) {
-                list.innerHTML = "<tr><td colspan="4">포럼 API 연결 실패. 서버가 점검 중일 수 있습니다.</td></tr>";
+                loadingBar.innerText = "에러: API 서버 응답 없음";
+                list.innerHTML = "<tr><td colspan='4'>데이터를 가져올 수 없습니다. 다시 시도해 주세요.</td></tr>";
             }
         }
         window.onload = init;
