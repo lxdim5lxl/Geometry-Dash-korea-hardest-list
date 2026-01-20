@@ -3,157 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KGD Forum Hardest Ranking</title>
+    <title>KGD Hardest Ranking</title>
     <style>
-        :root {
-            --amethyst-purple: #a855f7;
-            --amethyst-cyan: #2dd4bf;
-            --glass-bg: rgba(20, 10, 35, 0.75);
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            /* 배경 이미지가 없을 때를 대비한 딥 퍼플 그라데이션 */
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
-                        url('amethyst_bg.jpg') no-repeat center center fixed;
-            background-size: cover;
-            color: white;
-            font-family: 'Pretendard', -apple-system, sans-serif;
-            display: flex;
-            justify-content: center;
-        }
-
-        .container {
-            width: 95%;
-            max-width: 900px;
-            margin: 40px 0;
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 24px;
-            border: 1px solid rgba(168, 85, 247, 0.3);
-            padding: 25px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 1.8rem;
-            color: var(--amethyst-purple);
-            text-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
-            margin-bottom: 30px;
-            letter-spacing: 1px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0 10px;
-        }
-
-        th {
-            padding: 10px;
-            font-size: 0.8rem;
-            color: var(--amethyst-cyan);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            text-transform: uppercase;
-        }
-
-        td {
-            padding: 15px 10px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.03);
-            font-size: 0.9rem;
-        }
-
-        tr:hover td {
-            background: rgba(168, 85, 247, 0.15);
-        }
-
-        td:first-child { border-radius: 12px 0 0 12px; font-weight: bold; color: var(--amethyst-cyan); }
-        td:last-child { border-radius: 0 12px 12px 0; }
-
-        .map-name { color: #ff5555; font-weight: 600; }
-
-        .video-btn {
-            background: rgba(168, 85, 247, 0.2);
-            border: 1px solid var(--amethyst-purple);
-            color: white;
-            padding: 5px 12px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 0.75rem;
-            display: inline-block;
-        }
-
-        .loader { text-align: center; padding: 40px; font-style: italic; color: #888; }
+        :root { --p: #a855f7; --c: #2dd4bf; }
+        body { margin: 0; background: #0f0a1e; color: white; font-family: sans-serif; display: flex; justify-content: center; }
+        /* 배경 설정 */
+        .bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+               background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('amethyst_bg.jpg') no-repeat center/cover; }
+        .box { width: 95%; max-width: 800px; margin: 30px 0; background: rgba(255,255,255,0.05); 
+               backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border-radius: 20px; padding: 20px; border: 1px solid rgba(168,85,247,0.3); }
+        h1 { text-align: center; color: var(--p); text-shadow: 0 0 10px var(--p); font-size: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { color: var(--c); font-size: 0.8rem; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        td { padding: 12px 8px; text-align: center; font-size: 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .m { color: #ff5555; font-weight: bold; }
+        .btn { border: 1px solid var(--p); color: white; padding: 4px 10px; border-radius: 10px; text-decoration: none; font-size: 0.7rem; }
     </style>
 </head>
 <body>
+    <div class="bg"></div>
+    <div class="box">
+        <h1>KOREA HARDEST TOP 50</h1>
+        <table>
+            <thead>
+                <tr><th width="15%">순위</th><th width="30%">유저</th><th width="40%">하디스트</th><th width="15%">영상</th></tr>
+            </thead>
+            <tbody id="list">
+                <tr><td colspan="4" style="padding:40px;">데이터 로딩 중...</td></tr>
+            </tbody>
+        </table>
+    </div>
 
-<div class="container">
-    <h1>KOREA HARDEST TOP 50</h1>
-    <table>
-        <thead>
-            <tr>
-                <th width="15%">Rank</th>
-                <th width="30%">Name</th>
-                <th width="35%">Hardest</th>
-                <th width="20%">Link</th>
-            </tr>
-        </thead>
-        <tbody id="ranking-body">
-            <tr><td colspan="4" class="loader">데이터를 불러오는 중...</td></tr>
-        </tbody>
-    </table>
-</div>
+    <script>
+        async function load() {
+            const list = document.getElementById('list');
+            // API 서버 주소
+            const target = 'https://gmdkoreaforum.com/api/demonlist/leaderboard';
+            // AllOrigins 프록시 (시간차를 두어 차단을 피함)
+            const url = `https://api.allorigins.win/get?url=${encodeURIComponent(target)}&timestamp=${new Date().getTime()}`;
 
-<script>
-    async function loadData() {
-        const tbody = document.getElementById('ranking-body');
-        
-        // 브라우저 보안(CORS) 우회를 위한 올오리진 프록시 사용
-        const targetUrl = 'https://gmdkoreaforum.com/api/demonlist/leaderboard';
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+            try {
+                const res = await fetch(url);
+                const json = await res.json();
+                const data = JSON.parse(json.contents);
+                
+                // API 문서 기반 데이터 추출
+                const players = Array.isArray(data) ? data : (data.results || []);
 
-        try {
-            const response = await fetch(proxyUrl);
-            const json = await response.json();
-            // AllOrigins는 실제 데이터를 contents 안에 문자열로 담아서 줍니다.
-            const data = JSON.parse(json.contents);
-            
-            // 리더보드는 유저 정보 목록 배열이 반환됩니다.
-            const players = Array.isArray(data) ? data : (data.results || []);
+                if (!players || players.length === 0) {
+                    list.innerHTML = "<tr><td colspan='4'>현재 포럼에 등록된 유저가 없습니다.</td></tr>";
+                    return;
+                }
 
-            if (players.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='4'>데이터가 없습니다.</td></tr>";
-                return;
-            }
-
-            let html = "";
-            for (let i = 0; i < Math.min(players.length, 50); i++) {
-                const p = players[i];
-                // API 문서상의 필드명(nickname, best_level_name 등) 적용
-                html += `
+                list.innerHTML = players.slice(0, 50).map((p, i) => `
                     <tr>
-                        <td>#${i + 1}</td>
-                        <td style="font-weight:bold;">${p.nickname || 'Unknown'}</td>
-                        <td class="map-name">${p.best_level_name || 'N/A'}</td>
-                        <td><a href="${p.best_level_video || '#'}" target="_blank" class="video-btn">Watch</a></td>
+                        <td style="color:var(--c)">#${i+1}</td>
+                        <td>${p.nickname || 'Unknown'}</td>
+                        <td class="m">${p.best_level_name || 'N/A'}</td>
+                        <td><a href="${p.best_level_video || '#'}" target="_blank" class="btn">Watch</a></td>
                     </tr>
-                `;
+                `).join('');
+            } catch (e) {
+                list.innerHTML = "<tr><td colspan='4'>서버 통신 에러 (API 차단됨)</td></tr>";
             }
-            tbody.innerHTML = html;
-
-        } catch (error) {
-            console.error(error);
-            tbody.innerHTML = "<tr><td colspan='4'>서버 연결 실패 (API 확인 필요)</td></tr>";
         }
-    }
-
-    window.onload = loadData;
-</script>
-
+        window.onload = load;
+    </script>
 </body>
 </html>
